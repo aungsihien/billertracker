@@ -1,0 +1,11 @@
+{
+  "name": "biller-tracker",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "dependencies": {
+    "@mui/icons-material": "^7.0.2",
+    "framer-motion": "^12.6.5"
+  }
+}

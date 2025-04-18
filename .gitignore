@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+instance/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.pnpm-debug.log
+.DS_Store
+
+# Flask
+instance/
+.webassets-cache
+
+# React/Vite
+dist/
+dist-ssr/
+*.local
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Database
+*.db
+*.sqlite3
+
+# Excel temp files
+~$*.xlsx
+~$*.xls
+
+# Uploads directory (if it contains user data)
+uploads/*
+!uploads/.gitkeep

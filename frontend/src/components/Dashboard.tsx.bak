@@ -1,0 +1,72 @@
+import { Container, Typography, Box, Paper, AppBar, Toolbar, Button, CircularProgress } from '@mui/material';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Suspense } from 'react';
+import DashboardOverview from './DashboardOverview';
+import BillerStatusChart from './BillerStatusChart';
+import Top50BillerChart from './Top50BillerChart';
+import BillerList from './BillerList';
+
+const LoadingFallback = () => (
+  <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+    <CircularProgress />
+  </Box>
+);
+
+const Dashboard = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActive = (path: string) => location.pathname === path;
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <AppBar position="sticky" elevation={0} sx={{ backgroundColor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+        <Container maxWidth="lg">
+          <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+            <Typography variant="h4" component="h1" color="#dc004e"  sx={{ fontWeight: 'bold' }}>
+              Biller Tracker
+            </Typography>
+            <Box>
+              <Button
+                color="primary"
+                variant={isActive('/') ? 'contained' : 'text'}
+                onClick={() => navigate('/')}
+                sx={{ mr: 2 }}
+              >
+                Dashboard
+              </Button>
+              <Button
+                color="primary"
+                variant={isActive('/billers') ? 'contained' : 'text'}
+                onClick={() => navigate('/billers')}
+              >
+                Billers
+              </Button>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flex: 1 }}>
+        <Paper elevation={0} sx={{ p: 3, backgroundColor: 'background.default' }}>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/" element={
+                <Box sx={{ display: 'grid', gap: 4 }}>
+                  <DashboardOverview />
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
+                    <BillerStatusChart />
+                    <Top50BillerChart />
+                  </Box>
+                </Box>
+              } />
+              <Route path="/billers" element={<BillerList />} />
+            </Routes>
+          </Suspense>
+        </Paper>
+      </Container>
+    </Box>
+  );
+};
+
+export default Dashboard;
