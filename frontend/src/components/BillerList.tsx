@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme, alpha } from '@mui/material/styles';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
   import {
     Box,
@@ -254,7 +256,24 @@ import { useTheme, alpha } from '@mui/material/styles';
           </Box>
         </Box>
         
-        <TableContainer component={Paper} sx={{ boxShadow: 'none', maxHeight: '600px', overflow: 'auto' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => {
+          const worksheet = XLSX.utils.json_to_sheet(billers.map(({ id, name, status }) => ({ ID: id, Name: name, Status: status })));
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, 'Billers');
+          const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+          const data = new Blob([excelBuffer], { type: 'application/octet-stream' });
+          saveAs(data, 'biller_list.xlsx');
+        }}
+        sx={{ mb: 1 }}
+      >
+        Export to Excel
+      </Button>
+    </Box>
+    <TableContainer component={Paper} sx={{ boxShadow: 'none', maxHeight: '600px', overflow: 'auto' }}>
           <Table sx={{ minWidth: 650 }} stickyHeader>
             <TableHead sx={{ backgroundColor: isDark ? theme.palette.background.paper : '#f5f5f5', zIndex: 1 }}>
               <TableRow>
