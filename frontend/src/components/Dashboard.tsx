@@ -1,4 +1,7 @@
+import React from 'react';
 import { Container, Typography, Box, Paper, AppBar, Toolbar, Button, CircularProgress, Drawer, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, Tooltip } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useThemeMode } from '../ThemeContext';
@@ -17,6 +20,8 @@ import UnavailableISPList from './UnavailableISPList';
 import UnavailableMFIList from './UnavailableMFIList';
 import Top50BillersList from './Top50BillersList';
 
+
+
 const DRAWER_WIDTH = 240;
 
 const LoadingFallback = () => (
@@ -26,6 +31,8 @@ const LoadingFallback = () => (
 );
 
 const Dashboard = () => {
+  const [drawerOpen, setDrawerOpen] = React.useState(true);
+  const isSmallScreen = useMediaQuery('(max-width:900px)');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,32 +54,80 @@ const Dashboard = () => {
         borderBottom: 1, 
         borderColor: 'divider',
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        width: `calc(100% - ${DRAWER_WIDTH}px)`,
-        ml: `${DRAWER_WIDTH}px`
+        width: '100%',
+        ml: 0,
       }}>
-        <Toolbar sx={{ justifyContent: 'flex-end' }}>
-          <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
+        <Toolbar sx={{ justifyContent: 'space-between', alignItems: 'center', minHeight: '64px !important' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="h4" component="h1" color="#dc004e" sx={{ fontWeight: 'bold', fontSize: '1.75rem', mr: 1 }}>
+              Biller Tracker
+            </Typography>
             <IconButton
-  onClick={toggleMode}
-  size="large"
+  aria-label="open sidebar"
+  edge="end"
+  onClick={() => setDrawerOpen((open) => !open)}
+  disableRipple
+  disableFocusRipple
+  disableTouchRipple
+  tabIndex={0}
   sx={{
-    bgcolor: mode === 'light' ? 'primary.main' : '#ffe066',
-    color: mode === 'light' ? 'white' : '#664d03',
+    color: mode === 'light' ? '#212121' : '#fff',
+    background: 'none !important',
+    boxShadow: 'none !important',
+    outline: 'none !important',
+    ml: 0.5,
     '&:hover': {
-      bgcolor: mode === 'light' ? 'primary.dark' : '#ffe066',
-      boxShadow: 2,
+      background: 'none !important',
+      boxShadow: 'none !important',
+      outline: 'none !important',
     },
-    transition: 'background 0.2s',
+    '&:active': {
+      background: 'none !important',
+      boxShadow: 'none !important',
+      outline: 'none !important',
+    },
+    '&:focus': {
+      background: 'none !important',
+      boxShadow: 'none !important',
+      outline: 'none !important',
+    },
+    '&.Mui-focusVisible': {
+      background: 'none !important',
+      boxShadow: 'none !important',
+      outline: 'none !important',
+    },
+    '& .MuiTouchRipple-root': {
+      display: 'none !important',
+    }
   }}
 >
-  {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
+  <MenuIcon sx={{ fontSize: 28, color: mode === 'light' ? '#212121' : '#fff' }} />
 </IconButton>
+          </Box>
+          <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
+            <IconButton
+              onClick={toggleMode}
+              size="large"
+              sx={{
+                bgcolor: mode === 'light' ? 'primary.main' : '#ffe066',
+                color: mode === 'light' ? 'white' : '#664d03',
+                '&:hover': {
+                  bgcolor: mode === 'light' ? 'primary.dark' : '#ffe066',
+                  boxShadow: 2,
+                },
+                transition: 'background 0.2s',
+              }}
+            >
+              {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
+            </IconButton>
           </Tooltip>
         </Toolbar>
       </AppBar>
 
       <Drawer
-        variant="permanent"
+        anchor="left"
+        variant="persistent"
+        open={drawerOpen}
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
@@ -81,25 +136,18 @@ const Dashboard = () => {
             boxSizing: 'border-box',
             borderRight: 1,
             borderColor: 'divider',
+            height: '100%',
+            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           },
         }}
       >
-        <Toolbar sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          borderBottom: 1,
-          borderColor: 'divider',
-          minHeight: '64px !important'
-        }}>
-          <Typography variant="h4" component="h1" color="#dc004e" sx={{ 
-            fontWeight: 'bold',
-            fontSize: '1.75rem'
-          }}>
-            Biller Tracker
-          </Typography>
-        </Toolbar>
-        <Box sx={{ mt: 2 }}>
+         <Toolbar /> {/* <-- Add this line */}
+  <Box>
+    <List>
+      {/* ...navigationItems.map... */}
+    </List>
+  </Box>
+        <Box>
           <List>
             {navigationItems.map((item) => (
               <ListItem key={item.path} disablePadding>
@@ -130,11 +178,11 @@ const Dashboard = () => {
         </Box>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8, transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
         <Container maxWidth="lg" sx={{ mb: 4 }}>
           <Paper elevation={0} sx={{ p: 3, backgroundColor: 'background.default', border:'none' , boxShadow:'none' }}>
             <Suspense fallback={<LoadingFallback />}>
-              <Routes>
+              <Routes>  
                 <Route path="/" element={
                   <Box sx={{ display: 'grid', gap: 4 }}>
                     <DashboardOverview />
