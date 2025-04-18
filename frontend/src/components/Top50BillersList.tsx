@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Box,
@@ -89,35 +89,48 @@ const Top50BillersList: React.FC<Props> = ({ onDashboardUpdate }) => {
         Biller: biller,
         Status: newStatus  // Already matches API format
       });
-
-      // Update dashboard if callback provided
-      if (response.data.dashboard && onDashboardUpdate) {
-        onDashboardUpdate(response.data.dashboard);
-      }
-
+  
       // Update local state
       const updatedData = billerData.map(item => 
         item.Biller === biller ? { ...item, Status: newStatus } : item
       );
-        setBillerData(updatedData);
-        setFilteredData(updatedData.filter(biller =>
-          biller.Biller.toLowerCase().includes(searchQuery.toLowerCase())
-        ));
-
-        setNotification({
-          message: 'Status updated successfully',
-          type: 'success'
-        });
-      } catch (error) {
-        console.error('Error updating status:', error);
-        setNotification({
-          message: 'Failed to update status. Please try again.',
-          type: 'error'
-        });
-      } finally {
-        setUpdatingStatus(null);
+      setBillerData(updatedData);
+      setFilteredData(updatedData.filter(biller =>
+        biller.Biller.toLowerCase().includes(searchQuery.toLowerCase())
+      ));
+  
+      // Update dashboard if callback provided
+      if (onDashboardUpdate) {
+        // If the backend provided dashboard data, use it
+        if (response.data.dashboard) {
+          onDashboardUpdate(response.data.dashboard);
+        } else {
+          // Otherwise, fetch the latest dashboard data
+          try {
+            const statusResponse = await axios.get('http://localhost:5000/api/top-50-status');
+            if (statusResponse.data) {
+              onDashboardUpdate(statusResponse.data);
+            }
+          } catch (err) {
+            console.error('Error fetching updated dashboard data:', err);
+          }
+        }
       }
-    };
+  
+      setNotification({
+        message: 'Status updated successfully',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      setNotification({
+        message: 'Failed to update status. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
 
   if (loading) {
     return (

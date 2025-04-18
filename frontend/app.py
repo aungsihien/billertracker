@@ -451,19 +451,57 @@ def get_biller_status():
 
 @app.route('/api/top-50-status')
 def get_top_50_status():
-    category = request.args.get('category')
-    query = db.session.query(Biller).filter_by(is_top_50=True)
-    
-    if category and category.lower() != 'all':
-        query = query.filter_by(category=category)
-    
-    status_counts = {
-        'not_started': query.filter_by(status='not_started').count(),
-        'in_progress': query.filter_by(status='in_progress').count(),
-        'go_live': query.filter_by(status='go_live').count()
-    }
-    
-    return jsonify(status_counts)
+    try:
+        category = request.args.get('category')
+        excel_path = os.path.join(os.path.dirname(__file__), 'fifty.xlsx')
+        logger.info(f'Reading Top 50 Billers Excel file for status counts from: {excel_path}')
+        
+        if not os.path.exists(excel_path):
+            logger.error(f'Excel file not found: {excel_path}')
+            return jsonify({'not_started': 0, 'in_progress': 0, 'go_live': 0}), 200
+            
+        df = pd.read_excel(excel_path)
+        df.columns = df.columns.str.strip()
+        
+        # Apply category filter if provided
+        if category and category.lower() != 'all' and 'Category' in df.columns:
+            df = df[df['Category'].str.lower() == category.lower()]
+        
+        # Define status mappings (both directions)
+        status_mapping = {
+            # Display format to API format
+            'Not Started': 'not_started',
+            'In Progress': 'in_progress',
+            'Go Live': 'go_live',
+            # API format to API format (identity mapping)
+            'not_started': 'not_started',
+            'in_progress': 'in_progress',
+            'go_live': 'go_live'
+        }
+        
+        # Initialize status counts
+        status_counts = {
+            'not_started': 0,
+            'in_progress': 0,
+            'go_live': 0
+        }
+        
+        # Ensure Status column exists
+        if 'Status' in df.columns:
+            # Normalize all status values to API format
+            for _, row in df.iterrows():
+                status = row['Status']
+                if pd.notna(status) and status in status_mapping:
+                    normalized_status = status_mapping[status]
+                    status_counts[normalized_status] += 1
+                elif pd.notna(status):
+                    logger.warning(f'Unknown status value in Excel: {status}')
+        
+        logger.info(f'Top 50 status counts: {status_counts}')
+        return jsonify(status_counts)
+    except Exception as e:
+        logger.error(f'Error in get_top_50_status: {e}')
+        return jsonify({'not_started': 0, 'in_progress': 0, 'go_live': 0}), 500
 
 @app.route('/api/categories')
 def get_categories():
