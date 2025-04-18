@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme, alpha } from '@mui/material/styles';
+
   import {
     Box,
     Typography,
@@ -29,6 +31,8 @@ import React, { useEffect, useState } from 'react';
   ];
 
   const BillerList = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
     const [billers, setBillers] = useState<Biller[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -117,11 +121,11 @@ import React, { useEffect, useState } from 'react';
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '200px',
-          bgcolor: '#ffffff',
+          bgcolor: isDark ? theme.palette.background.paper : '#ffffff',
           borderRadius: 1,
           p: 3,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          border: '1px solid rgba(0,0,0,0.1)'
+          boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
+          border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
         }}>
           <CircularProgress sx={{ color: '#dc004e', mb: 2 }} />
           <Typography sx={{ color: 'rgba(0,0,0,0.7)' }}>Loading biller data...</Typography>
@@ -137,11 +141,11 @@ import React, { useEffect, useState } from 'react';
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '200px',
-          bgcolor: '#ffffff',
+          bgcolor: isDark ? theme.palette.background.paper : '#ffffff',
           borderRadius: 1,
           p: 3,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          border: '1px solid rgba(0,0,0,0.1)'
+          boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
+          border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
         }}>
           <Typography sx={{ color: '#dc004e', textAlign: 'center', mb: 2 }}>
             Error: {error}
@@ -166,11 +170,11 @@ import React, { useEffect, useState } from 'react';
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '200px',
-          bgcolor: '#ffffff',
+          bgcolor: isDark ? theme.palette.background.paper : '#ffffff',
           borderRadius: 1,
           p: 3,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          border: '1px solid rgba(0,0,0,0.1)'
+          boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
+          border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
         }}>
           <Typography sx={{ color: 'rgba(0,0,0,0.7)', textAlign: 'center' }}>
             No biller data available
@@ -190,11 +194,11 @@ import React, { useEffect, useState } from 'react';
     return (
       <Box sx={{
         mb: 4,
-        bgcolor: '#ffffff',
+        bgcolor: isDark ? theme.palette.background.paper : '#ffffff',
         p: 3,
         borderRadius: 1,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        border: '1px solid rgba(0,0,0,0.1)'
+        boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
+        border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography
@@ -240,8 +244,10 @@ import React, { useEffect, useState } from 'react';
               style={{
                 padding: '8px 12px',
                 borderRadius: '4px',
-                border: '1px solid #ddd',
+                border: isDark ? `1px solid ${theme.palette.divider}` : '1px solid #ddd',
                 width: '100%',
+                background: isDark ? theme.palette.background.default : '#fff',
+                color: isDark ? '#fff' : '#000',
                 fontSize: '14px'
               }}
             />
@@ -250,10 +256,10 @@ import React, { useEffect, useState } from 'react';
         
         <TableContainer component={Paper} sx={{ boxShadow: 'none', maxHeight: '600px', overflow: 'auto' }}>
           <Table sx={{ minWidth: 650 }} stickyHeader>
-            <TableHead>
+            <TableHead sx={{ backgroundColor: isDark ? theme.palette.background.paper : '#f5f5f5', zIndex: 1 }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Biller Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', backgroundColor: isDark ? theme.palette.background.paper : '#f5f5f5', zIndex: 2 }}>Biller Name</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', backgroundColor: isDark ? theme.palette.background.paper : '#f5f5f5', zIndex: 2 }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -307,4 +313,12 @@ import React, { useEffect, useState } from 'react';
     );
   };
 
-  export default BillerList;
+  import ErrorBoundary from './ErrorBoundary';
+
+const BillerListWithBoundary = () => (
+  <ErrorBoundary>
+    <BillerList />
+  </ErrorBoundary>
+);
+
+export default BillerListWithBoundary;

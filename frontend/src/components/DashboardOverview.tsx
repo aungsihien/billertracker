@@ -123,7 +123,7 @@ const DashboardOverview = () => {
         borderRadius: 2,
         p: 3,
         boxShadow: theme.shadows[2],
-        border: `1px solid ${theme.palette.divider}`
+        
       }}>
         <CircularProgress sx={{ color: theme.palette.primary.main, mb: 2 }} />
         <Typography sx={{ color: 'text.secondary' }}>Loading dashboard data...</Typography>
@@ -208,7 +208,7 @@ const DashboardOverview = () => {
         p: 3,
         borderRadius: 2,
         boxShadow: theme.shadows[2],
-        border: `1px solid ${theme.palette.divider}`,
+        border: 'none',
         backdropFilter: 'blur(10px)'
       }}>
         <Box sx={{

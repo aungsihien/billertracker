@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTheme } from '@mui/material/styles';
 import { Box, Typography, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, CircularProgress } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import axios from 'axios';
@@ -10,6 +11,8 @@ interface StatusCounts {
 }
 
 const BillerStatusChart = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [statusData, setStatusData] = useState<StatusCounts>({
     not_started: 0,
     in_progress: 0,
@@ -91,14 +94,14 @@ const BillerStatusChart = () => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '200px',
-        bgcolor: '#ffffff',
+        bgcolor: isDark ? theme.palette.background.paper : '#ffffff',
         borderRadius: 1,
         p: 3,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        border: '1px solid rgba(0,0,0,0.1)'
+        boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
+        border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
       }}>
         <CircularProgress sx={{ color: '#dc004e', mb: 2 }} />
-        <Typography sx={{ color: 'rgba(0,0,0,0.7)' }}>Loading chart data...</Typography>
+        <Typography sx={{ color: isDark ? theme.palette.text.primary : 'rgba(0,0,0,0.7)' }}>Loading chart data...</Typography>
       </Box>
     );
   }
@@ -111,16 +114,16 @@ const BillerStatusChart = () => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '200px',
-        bgcolor: '#ffffff',
+        bgcolor: isDark ? theme.palette.background.paper : '#ffffff',
         borderRadius: 1,
         p: 3,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        border: '1px solid rgba(0,0,0,0.1)'
+        boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
+        border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
       }}>
-        <Typography sx={{ color: '#dc004e', textAlign: 'center', mb: 2 }}>
+        <Typography sx={{ color: theme.palette.error.main, textAlign: 'center', mb: 2 }}>
           Error: {error}
         </Typography>
-        <Typography sx={{ color: 'rgba(0,0,0,0.5)', textAlign: 'center' }}>
+        <Typography sx={{ color: isDark ? theme.palette.text.secondary : 'rgba(0,0,0,0.5)', textAlign: 'center' }}>
           Please try refreshing the page
         </Typography>
       </Box>
@@ -130,11 +133,11 @@ const BillerStatusChart = () => {
   return (
     <Box sx={{
       mb: 4,
-      bgcolor: '#ffffff',
+      bgcolor: isDark ? theme.palette.background.paper : '#ffffff',
       p: 3,
       borderRadius: 1,
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      border: '1px solid rgba(0,0,0,0.1)'
+      boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
+      border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
     }}>
       <Box sx={{
         display: 'flex',
@@ -142,7 +145,7 @@ const BillerStatusChart = () => {
         alignItems: 'center',
         mb: 3,
         pb: 2,
-        borderBottom: '1px solid rgba(0,0,0,0.1)'
+        borderBottom: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`
       }}>
         <Typography
           variant="h5"
@@ -158,68 +161,35 @@ const BillerStatusChart = () => {
           sx={{
             minWidth: 120,
             '& .MuiInputLabel-root': {
-              color: 'rgba(0,0,0,0.7)'
+              color: isDark ? theme.palette.text.primary : 'rgba(0,0,0,0.7)'
             }
           }}
         >
-          <InputLabel id="category-select-label">Category</InputLabel>
-          <Select
-            labelId="category-select-label"
-            id="category-select"
-            value={selectedCategory}
-            label="Category"
-            onChange={handleCategoryChange}
-            sx={{
-              color: 'rgba(0,0,0,0.87)',
-              '.MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0,0,0,0.1)'
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#dc004e'
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#dc004e'
-              }
-            }}
-          >
-            {categories.map((category) => (
-              <MenuItem
-                key={category}
-                value={category}
-                sx={{
-                  '&:hover': {
-                    backgroundColor: 'rgba(220,0,78,0.1)'
-                  }
-                }}
-              >
-                {category === 'all' ? 'All Categories' : category}  
-              </MenuItem>
-            ))}
-          </Select>
+          
         </FormControl>
       </Box>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-          <XAxis dataKey="name" stroke="rgba(0,0,0,0.7)" />
-          <YAxis stroke="rgba(0,0,0,0.7)" />
+          <XAxis dataKey="name" stroke={isDark ? '#fff' : 'rgba(0,0,0,0.7)'} />
+          <YAxis stroke={isDark ? '#fff' : 'rgba(0,0,0,0.7)'} />
           <Tooltip
             contentStyle={{
               background: '#ffffff',
-              border: '1px solid rgba(0,0,0,0.1)',
+              border: `1px solid ${isDark ? theme.palette.divider : 'rgba(0,0,0,0.1)'}`,
               borderRadius: '4px',
               boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
             }}
-            labelStyle={{ color: 'rgba(0,0,0,0.87)' }}
-            itemStyle={{ color: 'rgba(0,0,0,0.7)' }}
+            labelStyle={{ color: isDark ? '#fff' : 'rgba(0,0,0,0.87)' }}
+             itemStyle={{ color: isDark ? '#000000' : 'rgba(0,0,0,0.7)' }}
           />
-          <Legend
-            wrapperStyle={{
-              color: 'rgba(0,0,0,0.7)',
-              paddingTop: '20px'
-            }}
-          />
-          <Bar dataKey="value" name="Count">
+         <Legend
+        wrapperStyle={{
+       color: isDark ? '#fff' : 'rgba(0,0,0,0.7)',
+    paddingTop: '20px'
+  }}
+/>
+          <Bar dataKey="value" name="count">
             {chartData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}

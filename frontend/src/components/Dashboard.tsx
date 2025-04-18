@@ -1,4 +1,7 @@
-import { Container, Typography, Box, Paper, AppBar, Toolbar, Button, CircularProgress, Drawer, List, ListItem, ListItemText, ListItemButton, ListItemIcon } from '@mui/material';
+import { Container, Typography, Box, Paper, AppBar, Toolbar, Button, CircularProgress, Drawer, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, Tooltip } from '@mui/material';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import { useThemeMode } from '../ThemeContext';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Suspense } from 'react';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -36,6 +39,7 @@ const Dashboard = () => {
     { path: '/unavailable-mfi', label: 'Unavailable MFI', icon: <AccountBalanceIcon /> },
   ];
 
+  const { mode, toggleMode } = useThemeMode();
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar position="fixed" elevation={0} sx={{ 
@@ -46,7 +50,25 @@ const Dashboard = () => {
         width: `calc(100% - ${DRAWER_WIDTH}px)`,
         ml: `${DRAWER_WIDTH}px`
       }}>
-        <Toolbar />
+        <Toolbar sx={{ justifyContent: 'flex-end' }}>
+          <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
+            <IconButton
+  onClick={toggleMode}
+  size="large"
+  sx={{
+    bgcolor: mode === 'light' ? 'primary.main' : '#ffe066',
+    color: mode === 'light' ? 'white' : '#664d03',
+    '&:hover': {
+      bgcolor: mode === 'light' ? 'primary.dark' : '#ffe066',
+      boxShadow: 2,
+    },
+    transition: 'background 0.2s',
+  }}
+>
+  {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
+</IconButton>
+          </Tooltip>
+        </Toolbar>
       </AppBar>
 
       <Drawer
@@ -110,7 +132,7 @@ const Dashboard = () => {
 
       <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
         <Container maxWidth="lg" sx={{ mb: 4 }}>
-          <Paper elevation={0} sx={{ p: 3, backgroundColor: 'background.default' }}>
+          <Paper elevation={0} sx={{ p: 3, backgroundColor: 'background.default', border:'none' , boxShadow:'none' }}>
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
                 <Route path="/" element={
