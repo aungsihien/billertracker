@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useBillerStatusSync } from '../BillerStatusContext';
 import {
   Box,
   Paper,
@@ -36,7 +37,10 @@ const STATUS_OPTIONS = [
   { display: 'In Progress', value: 'in_progress' ,color: '#1565c0'},
   { display: 'Go Live', value: 'go_live', color: '#2e7d32' }
 ] as const;
-
+const statusValueToDisplay = (value: string) => {
+  const found = STATUS_OPTIONS.find(opt => opt.value === value);
+  return found ? found.display : value;
+};
 type StatusType = typeof STATUS_OPTIONS[number]['display'];
 
 interface DashboardData {
@@ -51,6 +55,7 @@ interface Props {
 }
 
 const UnavailableISPList: React.FC<Props> = ({ onDashboardUpdate }) => {
+  const { subscribe, publish } = useBillerStatusSync();
   const [ispData, setISPData] = useState<ISPData[]>([]);
   const [filteredData, setFilteredData] = useState<ISPData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +88,21 @@ const UnavailableISPList: React.FC<Props> = ({ onDashboardUpdate }) => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // Subscribe to biller status changes
+    const unsubscribe = subscribe((event: { id: string; status: string }) => {
+      setISPData(prev =>
+        prev.map(item =>
+          item.ISP === event.id ? { ...item, Status: event.status } : item
+        )
+      );
+      setFilteredData(prev =>
+        prev.map(item =>
+          item.ISP === event.id ? { ...item, Status: event.status } : item
+        )
+      );
+    });
+    return () => unsubscribe();
+  }, [subscribe]);
 
   // Handle search
   useEffect(() => {
@@ -125,6 +144,8 @@ const UnavailableISPList: React.FC<Props> = ({ onDashboardUpdate }) => {
       setFilteredData(updatedData.filter(isp =>
         isp.ISP.toLowerCase().includes(searchQuery.toLowerCase())
       ));
+      // Publish for real-time sync
+      publish({ id: isp, status: newStatus }); // isp is the name string
       
       setNotification({
         message: 'Status updated successfully',
@@ -269,24 +290,24 @@ const UnavailableISPList: React.FC<Props> = ({ onDashboardUpdate }) => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Select
-                      size="small"
-                      value={isp.Status}
-                      onChange={(e: SelectChangeEvent) => handleStatusChange(isp.ISP, e.target.value)}
-                      disabled={updatingStatus === isp.ISP}
-                      sx={{
-                        minWidth: 120,
-                        '& .MuiSelect-select': {
-                          py: 0.5,
-                        }
-                      }}
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <MenuItem key={status.value} value={status.display}>
-                          {status.display}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                  <Select
+  size="small"
+  value={statusValueToDisplay(isp.Status)}
+  onChange={(e: SelectChangeEvent) => handleStatusChange(isp.ISP, e.target.value)}
+  disabled={updatingStatus === isp.ISP}
+  sx={{
+    minWidth: 120,
+    '& .MuiSelect-select': {
+      py: 0.5,
+    }
+  }}
+>
+  {STATUS_OPTIONS.map((status) => (
+    <MenuItem key={status.value} value={status.display}>
+      {status.display}
+    </MenuItem>
+  ))}
+</Select>
                   </TableCell>
                 </TableRow>
               ))

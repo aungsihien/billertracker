@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useBillerStatusSync } from '../BillerStatusContext';
 import axios from 'axios';
 import {
   Box,
@@ -43,6 +44,7 @@ const STATUS_OPTIONS = [
 ] as const;
 
 const Top50BillersList: React.FC<Props> = ({ onDashboardUpdate }) => {
+  const { subscribe, publish } = useBillerStatusSync();
   const [billerData, setBillerData] = useState<BillerData[]>([]);
   const [filteredData, setFilteredData] = useState<BillerData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,21 @@ const Top50BillersList: React.FC<Props> = ({ onDashboardUpdate }) => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // Subscribe to biller status changes
+    const unsubscribe = subscribe((event: { id: string; status: string }) => {
+      setBillerData(prev =>
+        prev.map(biller =>
+          biller.Biller === event.id ? { ...biller, Status: event.status } : biller
+        )
+      );
+      setFilteredData(prev =>
+        prev.map(biller =>
+          biller.Biller === event.id ? { ...biller, Status: event.status } : biller
+        )
+      );
+    });
+    return () => unsubscribe();
+  }, [subscribe]);
 
   // Filter data based on search query
   useEffect(() => {
@@ -98,6 +114,8 @@ const Top50BillersList: React.FC<Props> = ({ onDashboardUpdate }) => {
       setFilteredData(updatedData.filter(biller =>
         biller.Biller.toLowerCase().includes(searchQuery.toLowerCase())
       ));
+      // Publish for real-time sync
+      publish({ id: biller, status: newStatus }); // biller is the name string
   
       // Update dashboard if callback provided
       if (onDashboardUpdate) {

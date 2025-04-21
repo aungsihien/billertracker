@@ -78,30 +78,8 @@ with app.app_context():
 @app.route('/api/dashboard-overview')
 def get_dashboard_overview():
     total_billers = db.session.query(Biller).count()
-    # Count unavailable ISP from Excel file (excluding Go Live ISPs)
-    try:
-        # Try reading from noti.xlsx first
-        try:
-            df = pd.read_excel(ISP_EXCEL_FILE)
-        except Exception as e:
-            logger.error(f'Failed to read {ISP_EXCEL_FILE}, trying notisp.xlsx')
-            df = pd.read_excel('notisp.xlsx')
-            
-        # Only count ISPs that are not in 'Go Live' status
-        unavailable_isp = len(df[df['Status'] != 'Go Live'])
-    except Exception as e:
-        logger.error(f'Error counting unavailable ISPs: {e}')
-        unavailable_isp = 0
-        
-    # Count MFIs that are not in 'Go Live' status from Excel file
-    try:
-        mfi_excel_path = os.path.join(BASE_DIR, 'mfi.xlsx')
-        df_mfi = pd.read_excel(mfi_excel_path)
-        unavailable_mfi = len(df_mfi[df_mfi['Status'] != 'Go Live'])
-    except Exception as e:
-        logger.error(f'Error counting unavailable MFIs: {e}')
-        unavailable_mfi = 0
-    # Get the last updated timestamp
+    unavailable_isp = db.session.query(Biller).filter_by(category='ISP').filter(Biller.status != 'go_live').count()
+    unavailable_mfi = db.session.query(Biller).filter_by(category='MFI').filter(Biller.status != 'go_live').count()
     last_updated = db.session.query(db.func.max(Biller.onboard_date)).scalar()
     return jsonify({
         'target_count': total_billers,
@@ -113,60 +91,17 @@ def get_dashboard_overview():
 @app.route('/api/top-50-billers', methods=['GET', 'OPTIONS'])
 def get_top_50_billers():
     try:
-        excel_path = os.path.join(os.path.dirname(__file__), 'fifty.xlsx')
-        logger.info(f'Reading Top 50 Billers Excel file from: {excel_path}')
-        
-        if not os.path.exists(excel_path):
-            logger.error(f'Excel file not found: {excel_path}')
-            return jsonify([]), 200
-            
-        df = pd.read_excel(excel_path)
-        df.columns = df.columns.str.strip()
-        logger.info(f'DataFrame shape: {df.shape}')
-        logger.info(f'DataFrame columns: {df.columns.tolist()}')
-        
-        # Rename columns to match expected format
-        df = df.rename(columns={'Biller Name': 'Biller'})
-        df['Web'] = ''
-        df['Category'] = 'Other'
-        
-        # Ensure required columns exist
-        required_columns = ['Biller', 'Web', 'Status', 'Category']
-        for col in required_columns:
-            if col not in df.columns:
-                logger.error(f'Required column {col} not found in Excel file')
-                return jsonify({'error': f'Required column {col} not found in Excel file'}), 500
-        
-        # Convert DataFrame to list of dictionaries with required fields
-        df = df[required_columns]  # Only keep required columns
-        biller_data = df.to_dict(orient='records')
-        
-        # Ensure proper data format and handle missing values
-        for row in biller_data:
-            if pd.isna(row['Biller']):
-                row['Biller'] = ''
-            if pd.isna(row['Status']) or not row['Status']:
-                row['Status'] = 'Not Started'
-            
-            # Convert all fields to string to ensure consistent format
-            row['Biller'] = str(row['Biller'])
-            row['Web'] = str(row['Web'])
-            
-            # Convert status to the format expected by frontend (lowercase with underscores)
-            status_mapping = {
-                'Not Started': 'not_started',
-                'In Progress': 'in_progress',
-                'Go Live': 'go_live'
+        billers = Biller.query.filter_by(is_top_50=True).all()
+        biller_data = [
+            {
+                'Biller': b.name,
+                'Web': '',
+                'Status': b.status,
+                'Category': b.category
             }
-            # Default to not_started if status doesn't match any known format
-            row['Status'] = status_mapping.get(str(row['Status']), 'not_started')
-            row['Category'] = str(row['Category'])
-        
-        logger.info(f'Processed Top 50 Biller data sample: {biller_data[:5]}')
+            for b in billers
+        ]
         return jsonify(biller_data)
-    except FileNotFoundError:
-        logger.error('fifty.xlsx not found')
-        return jsonify([]), 200
     except Exception as e:
         logger.error(f'Exception in /api/top-50-billers: {e}')
         return jsonify({'error': str(e)}), 500
@@ -175,134 +110,40 @@ def get_top_50_billers():
 def update_top_50_biller_status():
     try:
         data = request.get_json()
-        logger.info(f"Received data for status update: {data}")
         biller_name = data.get('Biller')
         new_status = data.get('Status')
-
-        logger.info(f"Attempting to update status for biller: '{biller_name}' to '{new_status}'")
-
         if not biller_name or not new_status:
-            logger.error(f"Missing required fields: biller_name={biller_name}, new_status={new_status}")
             return jsonify({'error': 'Biller name and status are required'}), 400
-
-        # Read the Excel file with error handling
-        excel_path = os.path.join(os.path.dirname(__file__), 'fifty.xlsx')
-        try:
-            df = pd.read_excel(excel_path)
-        except Exception as e:
-            logger.error(f"Failed to read Excel file: {str(e)}")
-            return jsonify({'error': 'Could not read biller data file'}), 500
-
-        # Normalize data
-        df.columns = df.columns.str.strip()
-        
-        # Check required columns
-        required_columns = ['Biller Name', 'Status']
-        for col in required_columns:
-            if col not in df.columns:
-                logger.error(f"Missing required column: {col}")
-                return jsonify({'error': f'Missing {col} column in data'}), 400
-
-        # Clean data
-        df['Biller Name'] = df['Biller Name'].astype(str).str.strip()
-        df['Status'] = df['Status'].astype(str).str.strip()
-
-        # Find biller (case insensitive)
-        biller_mask = df['Biller Name'].str.lower() == biller_name.lower()
-        if not biller_mask.any():
+        biller = Biller.query.filter_by(name=biller_name, category='Top 50').first()
+        if not biller:
             return jsonify({'error': 'Biller not found'}), 404
-
-        # Validate status
-        valid_statuses = ['not_started', 'in_progress', 'go_live']
-        status_display = {
-            'not_started': 'Not Started',
-            'in_progress': 'In Progress',
-            'go_live': 'Go Live'
-        }
-        
-        if new_status not in valid_statuses:
-            logger.error(f"Invalid status value: {new_status}. Valid values are: {valid_statuses}")
-            return jsonify({'error': 'Invalid status value'}), 400
-            
-        # Convert from frontend value to display value for Excel
-        excel_status = status_display[new_status]
-
-        # Update status
-        old_status = df.loc[biller_mask, 'Status'].values[0]
-        df.loc[biller_mask, 'Status'] = excel_status
-        
-        # Log the update for debugging
-        logger.info(f"Updated status for '{biller_name}' from '{old_status}' to '{excel_status}'")
-
-        # Save changes
-        try:
-            df.to_excel(excel_path, index=False)
-        except Exception as e:
-            logger.error(f"Failed to save Excel file: {str(e)}")
-            return jsonify({'error': 'Could not save updates'}), 500
-
-        # Prepare dashboard data
-        status_counts = {
-            'total': len(df),
-            'not_started': len(df[df['Status'] == 'Not Started']),
-            'in_progress': len(df[df['Status'] == 'In Progress']),
-            'go_live': len(df[df['Status'] == 'Go Live'])
-        }
-        
-        logger.info(f"Status counts after update: {status_counts}")
-
+        old_status = biller.status
+        biller.status = new_status
+        db.session.commit()
         return jsonify({
             'success': True,
             'message': 'Status updated successfully',
-            'dashboard': status_counts,
             'old_status': old_status,
             'new_status': new_status
         })
-
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        logger.error(f'Unexpected error: {str(e)}', exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
 
 @app.route('/api/unavailable-isp', methods=['GET'])
 def get_unavailable_isp():
     try:
-        logger.info(f'Reading ISP Excel file from: {ISP_EXCEL_FILE}')
-        df = pd.read_excel(ISP_EXCEL_FILE)
-        df.columns = df.columns.str.strip()
-        logger.info(f'DataFrame shape: {df.shape}')
-        logger.info(f'DataFrame columns: {df.columns.tolist()}')
-        
-        # Ensure required columns exist
-        required_columns = ['ISP', 'Web', 'Status']
-        for col in required_columns:
-            if col not in df.columns:
-                logger.error(f'Required column {col} not found in Excel file')
-                return jsonify({'error': f'Required column {col} not found in Excel file'}), 500
-        
-        # Convert DataFrame to list of dictionaries with required fields
-        df = df[required_columns]  # Only keep required columns
-        isp_data = df.to_dict(orient='records')
-        
-        # Ensure proper data format and handle missing values
-        for row in isp_data:
-            if pd.isna(row['ISP']):
-                row['ISP'] = ''
-            if pd.isna(row['Web']):
-                row['Web'] = ''
-            if pd.isna(row['Status']) or not row['Status']:
-                row['Status'] = 'Not Started'
-            
-            # Convert all fields to string to ensure consistent format
-            row['ISP'] = str(row['ISP'])
-            row['Web'] = str(row['Web'])
-            row['Status'] = str(row['Status'])
-        
-        logger.info(f'Processed ISP data sample: {isp_data[:5]}')
+        isps = Biller.query.filter_by(category='ISP').all()
+        isp_data = [
+            {
+                'ISP': b.name,
+                'Web': '',
+                'Status': b.status
+            }
+            for b in isps
+        ]
         return jsonify(isp_data)
-    except FileNotFoundError:
-        logger.error('noti.xlsx not found')
-        return jsonify([]), 200
     except Exception as e:
         logger.error(f'Exception in /api/unavailable-isp: {e}')
         return jsonify({'error': str(e)}), 500
@@ -310,128 +151,81 @@ def get_unavailable_isp():
 @app.route('/api/unavailable-mfi', methods=['GET'])
 def get_unavailable_mfi():
     try:
-        # Use the same BASE_DIR as other functions for consistency
-        mfi_excel_path = os.path.join(BASE_DIR, 'mfi.xlsx')
-        logger.info(f'Reading MFI Excel file from: {mfi_excel_path}')
-        df = pd.read_excel(mfi_excel_path)
-        df.columns = df.columns.str.strip()
-        logger.info(f'DataFrame shape: {df.shape}')
-        logger.info(f'DataFrame columns: {df.columns.tolist()}')
-        
-        # Ensure required columns exist
-        required_columns = ['MFI', 'Web', 'Status']
-        for col in required_columns:
-            if col not in df.columns:
-                logger.error(f'Required column {col} not found in Excel file')
-                return jsonify({'error': f'Required column {col} not found in Excel file'}), 500
-        
-        # Convert DataFrame to list of dictionaries with required fields
-        df = df[required_columns]  # Only keep required columns
-        mfi_data = df.to_dict(orient='records')
-        
-        # Ensure proper data format and handle missing values
-        for row in mfi_data:
-            if pd.isna(row['MFI']):
-                row['MFI'] = ''
-            if pd.isna(row['Web']):
-                row['Web'] = ''
-            if pd.isna(row['Status']) or not row['Status']:
-                row['Status'] = 'Not Started'
-            
-            # Convert all fields to string to ensure consistent format
-            row['MFI'] = str(row['MFI'])
-            row['Web'] = str(row['Web'])
-            
-            # Convert status to lowercase with underscores format for frontend
-            status_mapping = {
-                'Not Started': 'not_started',
-                'In Progress': 'in_progress',
-                'Go Live': 'go_live'
+        mfis = Biller.query.filter_by(category='MFI').all()
+        mfi_data = [
+            {
+                'MFI': b.name,
+                'Web': '',
+                'Status': b.status
             }
-            # Default to not_started if status doesn't match any known format
-            row['Status'] = status_mapping.get(str(row['Status']), 'not_started')
-        
-        logger.info(f'Processed MFI data sample: {mfi_data[:5]}')
+            for b in mfis
+        ]
         return jsonify(mfi_data)
-    except FileNotFoundError:
-        logger.error(f'MFI Excel file not found at: {mfi_excel_path}')
-        return jsonify([]), 200
     except Exception as e:
         logger.error(f'Exception in /api/unavailable-mfi: {e}')
         return jsonify({'error': str(e)}), 500
+
+# MFI Status History Model
+class MFIStatusHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    mfi_name = db.Column(db.String(100), nullable=False)
+    old_status = db.Column(db.String(20))
+    new_status = db.Column(db.String(20), nullable=False)
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'mfi_name': self.mfi_name,
+            'old_status': self.old_status,
+            'new_status': self.new_status,
+            'changed_at': self.changed_at.isoformat() if self.changed_at else None
+        }
+
 @app.route('/api/unavailable-mfi/status', methods=['POST'])
 def update_mfi_status():
     try:
         data = request.get_json()
         mfi_name = data.get('MFI')
         new_status = data.get('Status')
-        
         if not mfi_name or not new_status:
             return jsonify({'error': 'MFI name and Status are required'}), 400
-            
-        # Convert status from frontend format to Excel format
-        status_mapping = {
-            "not_started": "Not Started",
-            "in_progress": "In Progress",
-            "go_live": "Go Live"
-        }
-        
-        logger.info(f"Received status from frontend: '{new_status}'")
-        
-        if new_status not in status_mapping:
-            logger.error(f"Invalid status value: '{new_status}'. Valid values are: {list(status_mapping.keys())}")
-            return jsonify({'error': 'Invalid status value'}), 400
-        
-        excel_status = status_mapping[new_status]
-        
-        # Read the Excel file
-        try:
-            mfi_excel_path = os.path.join(BASE_DIR, 'mfi.xlsx')
-            logger.info(f'Reading MFI Excel file from: {mfi_excel_path}')
-            df = pd.read_excel(mfi_excel_path)
-            df.columns = df.columns.str.strip()
-            
-            # Find the MFI and update its status
-            mfi_mask = df['MFI'].astype(str) == str(mfi_name)
-            if not mfi_mask.any():
-                return jsonify({'error': 'MFI not found'}), 404
-                
-            # Get the old status before updating
-            old_status = df.loc[mfi_mask, 'Status'].iloc[0]
-            
-            # Update status in Excel
-            df.loc[mfi_mask, 'Status'] = excel_status
-            df.to_excel(mfi_excel_path, index=False)
-            logger.info(f'Updated MFI status in Excel file: {mfi_excel_path}')
-            
-            # Get updated dashboard counts if status changed to/from 'Go Live'
-            dashboard_data = None
-            if excel_status == 'Go Live' or old_status == 'Go Live':
-                # Get fresh dashboard data since counts have changed
-                total_billers = db.session.query(Biller).count()
-                unavailable_isp = len(pd.read_excel(ISP_EXCEL_FILE)[pd.read_excel(ISP_EXCEL_FILE)['Status'] != 'Go Live'])
-                unavailable_mfi = len(df[df['Status'] != 'Go Live'])
-                last_updated = db.session.query(db.func.max(Biller.onboard_date)).scalar()
-                
-                dashboard_data = {
-                    'target_count': total_billers,
-                    'unavailable_isp': unavailable_isp,
-                    'unavailable_mfi': unavailable_mfi,
-                    'last_updated': last_updated.isoformat() if last_updated else None
-                }
-            
-            return jsonify({
-                'success': True,
-                'message': f'Status updated for MFI: {mfi_name}',
-                'dashboard': dashboard_data  # Will be None if no dashboard update needed
-            })
-        except Exception as e:
-            logger.error(f'Failed to read or update MFI Excel file {mfi_excel_path}: {e}')
-            return jsonify({'error': 'Failed to read or update MFI data'}), 500
-            
+        mfi = Biller.query.filter_by(name=mfi_name, category='MFI').first()
+        if not mfi:
+            return jsonify({'error': 'MFI not found'}), 404
+        old_status = mfi.status
+        mfi.status = new_status
+        db.session.commit()
+        # Record the status change in database (history)
+        status_history = MFIStatusHistory(
+            mfi_name=mfi_name,
+            old_status=old_status,
+            new_status=new_status
+        )
+        db.session.add(status_history)
+        db.session.commit()
+        # Get updated dashboard counts if status changed to/from 'go_live'
+        dashboard_data = None
+        if new_status == 'go_live' or old_status == 'go_live':
+            total_billers = db.session.query(Biller).count()
+            unavailable_isp = db.session.query(Biller).filter_by(category='ISP').filter(Biller.status != 'go_live').count()
+            unavailable_mfi = db.session.query(Biller).filter_by(category='MFI').filter(Biller.status != 'go_live').count()
+            last_updated = db.session.query(db.func.max(Biller.onboard_date)).scalar()
+            dashboard_data = {
+                'target_count': total_billers,
+                'unavailable_isp': unavailable_isp,
+                'unavailable_mfi': unavailable_mfi,
+                'last_updated': last_updated.isoformat() if last_updated else None
+            }
+        return jsonify({
+            'success': True,
+            'message': f'Status updated for MFI: {mfi_name}',
+            'history': status_history.to_dict(),
+            'dashboard': dashboard_data
+        })
     except Exception as e:
-        logger.error(f'Exception in /api/unavailable-mfi/status: {e}')
-        return jsonify({'error': str(e)}), 500
+        logger.error(f'Unexpected error: {str(e)}', exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/biller-status')
 def get_biller_status():
@@ -453,51 +247,18 @@ def get_biller_status():
 def get_top_50_status():
     try:
         category = request.args.get('category')
-        excel_path = os.path.join(os.path.dirname(__file__), 'fifty.xlsx')
-        logger.info(f'Reading Top 50 Billers Excel file for status counts from: {excel_path}')
-        
-        if not os.path.exists(excel_path):
-            logger.error(f'Excel file not found: {excel_path}')
-            return jsonify({'not_started': 0, 'in_progress': 0, 'go_live': 0}), 200
-            
-        df = pd.read_excel(excel_path)
-        df.columns = df.columns.str.strip()
-        
-        # Apply category filter if provided
-        if category and category.lower() != 'all' and 'Category' in df.columns:
-            df = df[df['Category'].str.lower() == category.lower()]
-        
-        # Define status mappings (both directions)
-        status_mapping = {
-            # Display format to API format
-            'Not Started': 'not_started',
-            'In Progress': 'in_progress',
-            'Go Live': 'go_live',
-            # API format to API format (identity mapping)
-            'not_started': 'not_started',
-            'in_progress': 'in_progress',
-            'go_live': 'go_live'
-        }
-        
-        # Initialize status counts
+        query = Biller.query.filter_by(is_top_50=True)
+        if category and category.lower() != 'all':
+            query = query.filter(Biller.category.ilike(category))
+        billers = query.all()
         status_counts = {
             'not_started': 0,
             'in_progress': 0,
             'go_live': 0
         }
-        
-        # Ensure Status column exists
-        if 'Status' in df.columns:
-            # Normalize all status values to API format
-            for _, row in df.iterrows():
-                status = row['Status']
-                if pd.notna(status) and status in status_mapping:
-                    normalized_status = status_mapping[status]
-                    status_counts[normalized_status] += 1
-                elif pd.notna(status):
-                    logger.warning(f'Unknown status value in Excel: {status}')
-        
-        logger.info(f'Top 50 status counts: {status_counts}')
+        for b in billers:
+            if b.status in status_counts:
+                status_counts[b.status] += 1
         return jsonify(status_counts)
     except Exception as e:
         logger.error(f'Error in get_top_50_status: {e}')
@@ -641,8 +402,16 @@ def update_isp_status():
         # Update status in Excel
         df.loc[isp_mask, 'Status'] = excel_status
         df.to_excel(ISP_EXCEL_FILE, index=False)
-        
-        # Record the status change in database
+
+        # Update status in the database as well
+        biller = Biller.query.filter_by(name=isp_name, category='ISP').first()
+        if biller:
+              biller.status = new_status  # Use the API value (e.g., 'not_started')
+              db.session.commit()
+        else:
+              logger.warning(f"No Biller found in DB for ISP '{isp_name}' with category 'ISP'")
+
+        # Record the status change in database (history)
         status_history = ISPStatusHistory(
             isp_name=isp_name,
             old_status=old_status,

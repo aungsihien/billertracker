@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useBillerStatusSync } from '../BillerStatusContext';
 import axios from 'axios';
 import {
   Box,
@@ -42,6 +43,7 @@ const STATUS_OPTIONS = [
 ];
 
 const UnavailableMFIList: React.FC<Props> = ({ onDashboardUpdate }) => {
+  const { subscribe, publish } = useBillerStatusSync();
   const [mfiData, setMFIData] = useState<MFIData[]>([]);
   const [filteredData, setFilteredData] = useState<MFIData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,21 @@ const UnavailableMFIList: React.FC<Props> = ({ onDashboardUpdate }) => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // Subscribe to biller status changes
+    const unsubscribe = subscribe((event: { id: string; status: string }) => {
+      setMFIData(prev =>
+        prev.map(item =>
+          item.MFI === event.id ? { ...item, Status: event.status } : item
+        )
+      );
+      setFilteredData(prev =>
+        prev.map(item =>
+          item.MFI === event.id ? { ...item, Status: event.status } : item
+        )
+      );
+    });
+    return () => unsubscribe();
+  }, [subscribe]);
 
   useEffect(() => {
     const filtered = mfiData.filter(mfi =>
@@ -113,6 +129,8 @@ const UnavailableMFIList: React.FC<Props> = ({ onDashboardUpdate }) => {
       setFilteredData(updatedData.filter(mfi =>
         mfi.MFI.toLowerCase().includes(searchQuery.toLowerCase())
       ));
+      // Publish for real-time sync
+      publish({ id: mfi, status: newStatus }); // mfi is the name string
       
       setNotification({
         message: 'Status updated successfully',

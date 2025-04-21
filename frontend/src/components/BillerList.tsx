@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useBillerStatusSync } from '../BillerStatusContext';
 import { useTheme, alpha } from '@mui/material/styles';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -33,6 +35,8 @@ import { saveAs } from 'file-saver';
   ];
 
   const BillerList = () => {
+  const navigate = useNavigate();
+  const { subscribe, publish } = useBillerStatusSync();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
     const [billers, setBillers] = useState<Biller[]>([]);
@@ -43,41 +47,51 @@ import { saveAs } from 'file-saver';
     const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout>();
 
     const handleStatusChange = async (billerId: number, newStatus: Status) => {
-      try {
-        setUpdatingStatus(billerId);
-        const response = await axios.post(
-          `http://localhost:5000/api/billers/${billerId}/status`,
-          { status: newStatus.toLowerCase() }
-        );
-
-        if (response.data.success) {
-          setBillers(prevBillers =>
-            prevBillers.map(biller =>
-              biller.id === billerId
-                ? { ...biller, status: newStatus }
-                : biller
-            )
-          );
-          setError(null); // Clear any previous errors
-        } else {
-          throw new Error(response.data.error || 'Failed to update status');
-        }
-      } catch (error: any) {
-        console.error('Error updating status:', error);
-        if (error.response && error.response.data && error.response.data.error) {
-          // Handle backend validation error messages
-          setError(error.response.data.error);
-        } else {
-          setError(
-            error instanceof Error
-              ? error.message
-              : 'Failed to update biller status'
-          );
-        }
-      } finally {
-        setUpdatingStatus(null);
+  if (newStatus === 'go_live') {
+    // Redirect to GoLiveRedirect, pass billerId
+    navigate('/go-live', { state: { billerId } });
+    return;
+  }
+  // Existing logic for other status changes
+  try {
+    setUpdatingStatus(billerId);
+    const response = await axios.post(
+      `http://localhost:5000/api/billers/${billerId}/status`,
+      { status: newStatus.toLowerCase() }
+    );
+    if (response.data.success) {
+      setBillers(prevBillers =>
+        prevBillers.map(biller =>
+          biller.id === billerId
+            ? { ...biller, status: newStatus }
+            : biller
+        )
+      );
+      // Publish biller status change for real-time sync
+      const biller = billers.find(b => b.id === billerId);
+      if (biller) {
+        publish({ id: biller.name, status: newStatus });
       }
-    };
+      setError(null); // Clear any previous errors
+    } else {
+      throw new Error(response.data.error || 'Failed to update status');
+    }
+  } catch (error: any) {
+    console.error('Error updating status:', error);
+    if (error.response && error.response.data && error.response.data.error) {
+      // Handle backend validation error messages
+      setError(error.response.data.error);
+    } else {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update biller status'
+      );
+    }
+  } finally {
+    setUpdatingStatus(null);
+  }
+};
 
     const fetchBillers = async (search?: string) => {
       try {
@@ -113,7 +127,18 @@ import { saveAs } from 'file-saver';
     };
     useEffect(() => {
       fetchBillers();
-    }, []);
+      // Subscribe to biller status changes
+      const unsubscribe = subscribe(event => {
+        setBillers(prevBillers =>
+          prevBillers.map(biller =>
+            biller.name === event.id
+              ? { ...biller, status: event.status }
+              : biller
+          )
+        );
+      });
+      return () => unsubscribe();
+    }, [subscribe]);
 
     if (loading) {
       return (

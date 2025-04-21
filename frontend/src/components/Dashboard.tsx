@@ -13,6 +13,7 @@ import SignalWifiOffIcon from '@mui/icons-material/SignalWifiOff';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import StarIcon from '@mui/icons-material/Star';
 import DashboardOverview from './DashboardOverview';
+import GoLiveRedirect from './GoLiveRedirect';
 import BillerStatusChart from './BillerStatusChart';
 import Top50BillerChart from './Top50BillerChart';
 import BillerList from './BillerList';
@@ -196,6 +197,7 @@ const Dashboard = () => {
                 <Route path="/unavailable-isp" element={<UnavailableISPList />} />
                 <Route path="/unavailable-mfi" element={<UnavailableMFIList />} />
                 <Route path="/top-50-billers" element={<Top50BillersList />} />
+                <Route path="/go-live" element={<GoLiveRedirect />} />
               </Routes>
             </Suspense>
           </Paper>

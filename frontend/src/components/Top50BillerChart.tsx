@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useBillerStatusSync } from '../BillerStatusContext';
 import { useTheme } from '@mui/material/styles';
 import { Box, Typography, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, CircularProgress } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -37,32 +38,44 @@ const Top50BillerChart = () => {
     fetchCategories();
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const url = `http://localhost:5000/api/top-50-status${selectedCategory !== 'all' ? `?category=${selectedCategory}` : ''}`;
-        const response = await axios.get(url);
-        if (response.data && typeof response.data === 'object') {
-          setStatusData({
-            not_started: Number(response.data.not_started) || 0,
-            in_progress: Number(response.data.in_progress) || 0,
-            go_live: Number(response.data.go_live) || 0
-          });
-        } else {
-          throw new Error('Invalid data format received');
-        }
-      } catch (error) {
-        console.error('Error fetching top 50 biller status:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch biller status');
-      } finally {
-        setLoading(false);
-      }
-    };
+ 
 
+const { subscribe } = useBillerStatusSync();
+const fetchData = useCallback(async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    const url = `http://localhost:5000/api/top-50-status${selectedCategory !== 'all' ? `?category=${selectedCategory}` : ''}`;
+    const response = await axios.get(url);
+    if (response.data && typeof response.data === 'object') {
+      setStatusData({
+        not_started: Number(response.data.not_started) || 0,
+        in_progress: Number(response.data.in_progress) || 0,
+        go_live: Number(response.data.go_live) || 0
+      });
+    } else {
+      throw new Error('Invalid data format received');
+    }
+  } catch (error) {
+    console.error('Error fetching top 50 biller status:', error);
+    setError(error instanceof Error ? error.message : 'Failed to fetch biller status');
+  } finally {
+    setLoading(false);
+  }
+}, [selectedCategory]);
+
+useEffect(() => {
+  fetchData();
+}, [fetchData]);
+
+useEffect(() => {
+  const unsubscribe = subscribe(() => {
     fetchData();
-  }, [selectedCategory]);
+  });
+  return () => unsubscribe();
+}, [subscribe, fetchData]);
+
+
 
   const handleCategoryChange = (event: SelectChangeEvent) => {
     setSelectedCategory(event.target.value);
