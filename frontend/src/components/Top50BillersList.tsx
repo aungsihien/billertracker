@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useBillerStatusSync } from '../BillerStatusContext';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Table,
@@ -98,14 +100,26 @@ const Top50BillersList: React.FC<Props> = ({ onDashboardUpdate }) => {
     setFilteredData(filtered);
   }, [searchQuery, billerData]);
 
+  const navigate = useNavigate();
+
   const handleStatusChange = async (biller: string, newStatus: string) => {
+    if (newStatus === 'go_live') {
+      // Redirect to GoLiveRedirect with biller info and list context
+      navigate('/go-live', {
+        state: {
+          billerName: biller,
+          listType: 'top-50-billers',
+          filters: { searchQuery },
+        }
+      });
+      return;
+    }
     setUpdatingStatus(biller);
     try {
       const response = await axios.post('http://localhost:5000/api/top-50-billers/status', {
         Biller: biller,
         Status: newStatus  // Already matches API format
       });
-  
       // Update local state
       const updatedData = billerData.map(item => 
         item.Biller === biller ? { ...item, Status: newStatus } : item

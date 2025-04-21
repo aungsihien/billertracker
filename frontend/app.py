@@ -11,6 +11,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app)
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"], "expose_headers": ["Content-Type", "X-Total-Count"]}}, supports_credentials=True)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ISP_EXCEL_FILE = os.path.join(BASE_DIR, 'noti.xlsx')
@@ -106,29 +107,40 @@ def get_top_50_billers():
         logger.error(f'Exception in /api/top-50-billers: {e}')
         return jsonify({'error': str(e)}), 500
 
+from datetime import datetime
+
 @app.route('/api/top-50-billers/status', methods=['POST'])
 def update_top_50_biller_status():
-    try:
-        data = request.get_json()
-        biller_name = data.get('Biller')
-        new_status = data.get('Status')
-        if not biller_name or not new_status:
-            return jsonify({'error': 'Biller name and status are required'}), 400
-        biller = Biller.query.filter_by(name=biller_name, category='Top 50').first()
-        if not biller:
-            return jsonify({'error': 'Biller not found'}), 404
-        old_status = biller.status
-        biller.status = new_status
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': 'Status updated successfully',
-            'old_status': old_status,
-            'new_status': new_status
-        })
-    except Exception as e:
-        logger.error(f'Unexpected error: {str(e)}', exc_info=True)
-        return jsonify({'error': 'Internal server error'}), 500
+    data = request.get_json()
+    print('DEBUG /api/top-50-billers/status received data:', data, flush=True)
+    biller_name = data.get('Biller')
+    new_status = data.get('Status')
+    integration_date = data.get('integration_date')
+    onboarding_date = data.get('onboarding_date')
+
+    if not biller_name or not new_status:
+        return jsonify({'success': False, 'error': 'Missing biller or status'}), 400
+
+    # Find the biller in the database
+    biller = Biller.query.filter_by(name=biller_name, category='Top 50').first()
+    if not biller:
+        return jsonify({'success': False, 'error': 'Biller not found'}), 404
+
+    # Update the status and dates
+    biller.status = new_status
+    if integration_date:
+        try:
+            biller.integration_date = datetime.strptime(integration_date, "%Y-%m-%d")
+        except Exception:
+            pass  # Ignore if field or format is missing
+    if onboarding_date:
+        try:
+            biller.onboard_date = datetime.strptime(onboarding_date, "%Y-%m-%d")
+        except Exception:
+            pass  # Ignore if field or format is missing
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Status updated successfully'})
 
 
 @app.route('/api/unavailable-isp', methods=['GET'])
