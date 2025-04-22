@@ -40,8 +40,10 @@ def migrate():
                     status = 'not_started'
                 # Check if biller exists
                 biller = Biller.query.filter_by(name=name, category=category).first()
+                web = str(row.get('Web', '')).strip() if 'Web' in row else None
                 if biller:
                     biller.status = status
+                    biller.web = web
                 else:
                     biller = Biller(
                         name=name,
@@ -49,11 +51,12 @@ def migrate():
                         status=status,
                         is_top_50=(category == 'Top 50'),
                         onboard_date=datetime.utcnow(),
-                        notes=None
+                        notes=None,
+                        web=web
                     )
                     db.session.add(biller)
             db.session.commit()
-        print("Migration complete.")
+        print("Migration complete. Website URLs included if present.")
 
 if __name__ == "__main__":
     migrate()

@@ -60,6 +60,7 @@ class Biller(db.Model):
     is_top_50 = db.Column(db.Boolean, default=False)
     onboard_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
+    web = db.Column(db.String(255))  # New column for website
 
     def to_dict(self):
         return {
@@ -69,7 +70,8 @@ class Biller(db.Model):
             'status': self.status,
             'is_top_50': self.is_top_50,
             'onboard_date': self.onboard_date.isoformat() if self.onboard_date else None,
-            'notes': self.notes
+            'notes': self.notes,
+            'web': self.web
         }
 
 # Create database tables
@@ -96,7 +98,7 @@ def get_top_50_billers():
         biller_data = [
             {
                 'Biller': b.name,
-                'Web': '',
+                'Web': b.web or '',
                 'Status': b.status,
                 'Category': b.category
             }
@@ -150,7 +152,7 @@ def get_unavailable_isp():
         isp_data = [
             {
                 'ISP': b.name,
-                'Web': '',
+                'Web': b.web or '',
                 'Status': b.status
             }
             for b in isps
@@ -167,7 +169,7 @@ def get_unavailable_mfi():
         mfi_data = [
             {
                 'MFI': b.name,
-                'Web': '',
+                'Web': b.web or '',
                 'Status': b.status
             }
             for b in mfis
